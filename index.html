@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tricky Kids</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --card-yellow: #ffcf33;
+            --card-red: #ff5e5e;
+            --card-blue: #5e97ff;
+        }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: -apple-system, sans-serif;
+            background-color: #1a1a1a;
+            color: #333;
+            overflow: hidden; touch-action: manipulation;
+        }
+
+        #game-container {
+            width: 100vw; height: 100vh; max-width: 500px; margin: 0 auto;
+            background: var(--bg-color); position: relative;
+            display: flex; flex-direction: column;
+        }
+
+        .screen { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; }
+        .screen.active { display: flex; }
+
+        /* 开始界面 */
+        #start-screen { justify-content: center; background: #2c3e50; color: white; }
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+        
+        button { 
+            padding: 12px 20px; font-size: 16px; border: none; border-radius: 8px; 
+            background: #fff; color: #2c3e50; font-weight: bold; cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        button:active { transform: scale(0.95); }
+        .primary-btn { background: #27ae60; color: white; width: 80%; margin: 10px 0; }
+        .random-btn { background: #f39c12; color: white; margin-bottom: 10px; }
+
+        /* 顶部状态 */
+        #status-bar { width: 100%; background: #333; color: white; padding: 8px 0; display: flex; justify-content: space-around; font-size: 12px; }
+        #score-cards-area { height: 85px; width: 100%; display: flex; justify-content: center; gap: 4px; padding: 10px; box-sizing: border-box; background: #ddd; z-index: 10; }
+        
+        .score-card { 
+            width: 13%; height: 65px; border: 1px solid #999; border-radius: 4px; font-size: 11px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; background: white; 
+        }
+        .score-card.active { border: 2px solid #e67e22; box-shadow: 0 0 8px rgba(230,126,34,0.5); transform: translateY(-2px); }
+        .score-card.discarded { opacity: 0.2; filter: grayscale(1); }
+
+        /* 游戏区域 */
+        #play-area { flex: 1; position: relative; width: 100%; display: flex; flex-direction: column; }
+        #table { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; }
+        .table-slot { position: absolute; display: flex; flex-direction: column; align-items: center; transition: all 0.3s ease; }
+
+        /* 手牌 */
+        #hand-container { background: #bbb; padding: 10px; display: flex; flex-direction: column; align-items: center; border-top: 2px solid #999; }
+        #hand-area { display: flex; justify-content: center; width: 100%; height: 90px; margin-bottom: 10px; }
+
+        /* 卡牌基础 */
+        .card { 
+            width: 50px; height: 75px; border-radius: 6px; border: 1px solid #333; 
+            position: relative; margin-left: -20px; box-shadow: 2px 2px 5px rgba(0,0,0,0.2); 
+            background-color: white; transition: transform 0.15s, opacity 0.1s;
+        }
+        .card:first-child { margin-left: 0; }
+        .card.selected { transform: translateY(-20px); border: 2.5px solid #000; z-index: 50; }
+        .card.disabled { filter: grayscale(1); opacity: 0.5; pointer-events: none; }
+        .card-val { position: absolute; top: 2px; left: 4px; font-weight: bold; font-size: 14px; pointer-events: none; }
+
+        .yellow { background-color: var(--card-yellow); }
+        .red { background-color: var(--card-red); color: white; }
+        .blue { background-color: var(--card-blue); color: white; }
+
+        /* 分配列表 */
+        #assign-list { width: 95%; overflow-y: auto; flex: 1; margin: 10px 0; }
+        .assign-row { display: flex; align-items: center; justify-content: space-between; background: #fff; margin-bottom: 4px; padding: 8px; border-radius: 6px; }
+        .assign-row input[type="number"] { width: 55px; font-size: 18px; text-align: center; border: 1px solid #ccc; border-radius: 4px; }
+
+        /* 结果界面 */
+        #result-screen { justify-content: center; background: #2c3e50; color: white; }
+        .ranking-list { width: 85%; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 15px; }
+        .ranking-item { display: flex; justify-content: space-between; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.2); font-size: 22px; }
+
+        /* 消息提示框 - 下移以避免遮挡 */
+        #msg-log { 
+            position: absolute; 
+            top: 150px; /* 从90px调到150px */
+            width: 100%; 
+            text-align: center; 
+            font-weight: bold; 
+            color: #d35400; 
+            z-index: 5; 
+            height: 30px;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="start-screen" class="screen active">
+        <h1 style="font-size: 48px; margin: 10px;">Tricky Kids</h1>
+        <div class="btn-group">
+            <button onclick="setupGame(2)">2人</button>
+            <button onclick="setupGame(3)">3人</button>
+            <button onclick="setupGame(4)">4人</button>
+            <button onclick="setupGame(5)">5人</button>
+            <button onclick="setupGame(6)">6人</button>
+        </div>
+    </div>
+
+    <div id="assign-screen" class="screen">
+        <h3 style="margin: 15px 0 5px;">分配 21 点 (选7张)</h3>
+        <button class="random-btn" onclick="autoAssign()">🎲 随机分配 (0-7)</button>
+        <div id="assign-list"></div>
+        <div style="font-size: 18px; margin-bottom: 10px;">
+            已选: <span id="sel-count">0</span>/7 | 总计: <span id="current-sum">0</span>/21
+        </div>
+        <button id="assign-done-btn" class="primary-btn" onclick="finishAssignment()">确认并开始</button>
+    </div>
+
+    <div id="main-screen" class="screen">
+        <div id="status-bar"></div>
+        <div id="score-cards-area"></div>
+        <div id="msg-log"></div>
+        <div id="play-area">
+            <div id="table"></div>
+            <div id="hand-container">
+                <div id="turn-info" style="font-size:14px; margin-bottom:5px; color:#444; font-weight:bold;"></div>
+                <div id="hand-area"></div>
+                <button id="play-btn" class="primary-btn" style="display:none; width:140px; margin:0; height:45px;" onclick="humanPlay()">立即出牌</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="result-screen" class="screen">
+        <h1 style="color:#f1c40f">游戏结束</h1>
+        <div class="ranking-list" id="final-ranking"></div>
+        <button class="primary-btn" style="margin-top: 30px" onclick="location.reload()">再玩一局</button>
+    </div>
+</div>
+
+<script>
+    const COLORS = ['yellow', 'red', 'blue'];
+    const CHN_COLORS = { yellow: '黄', red: '红', blue: '蓝' };
+    let playerCount, players, round = 1;
+    let scorePool = [], currentScoreCards = [], currentScoreCardIdx = 0;
+    let firstPlayerIdx = 0, currentPlayerIdx = 0, trickLeadSuit = null, currentTrick = [];
+
+    function setupGame(num) {
+        playerCount = num;
+        players = Array.from({length: num}, (_, i) => ({
+            id: i, name: i===0 ? "你" : "电脑"+i, isAI: i!==0, hand: [], score: 0
+        }));
+        initScorePool();
+        startRound();
+    }
+
+    function initScorePool() {
+        const combos = [[1,3,3], [3,1,3], [3,3,1], [2,0,5], [2,5,0], [0,2,5], [0,5,2], [5,2,0], [5,0,2], [1,2,4], [1,4,2], [4,2,1], [4,1,2], [2,1,4], [2,4,1], [2,3,3], [3,2,3], [3,3,2], [1,1,5], [1,5,1], [5,1,1]];
+        scorePool = combos.map(c => ({yellow:c[0], red:c[1], blue:c[2], status:'active'})).sort(()=>Math.random()-0.5);
+    }
+
+    function startRound() {
+        currentScoreCards = scorePool.splice(0, 7);
+        currentScoreCardIdx = 0;
+        let deck = [];
+        COLORS.forEach(c => { for(let i=0; i<18; i++) deck.push({suit:c, value:0}); });
+        deck.sort(() => Math.random() - 0.5);
+
+        players.forEach(p => {
+            p.hand = deck.splice(0, 9);
+            if(p.isAI) {
+                p.hand = p.hand.slice(0, 7);
+                let sum = 0, target = 21;
+                for(let i=0; i<6; i++) {
+                    let v = Math.floor(Math.random() * Math.min(target - (6-i), 7));
+                    p.hand[i].value = v; sum += v; target -= v;
+                }
+                p.hand[6].value = target;
+            }
+        });
+        renderAssignScreen();
+    }
+
+    function renderAssignScreen() {
+        showScreen('assign-screen');
+        const list = document.getElementById('assign-list');
+        list.innerHTML = '';
+        players[0].hand.forEach((card, i) => {
+            const row = document.createElement('div');
+            row.className = 'assign-row';
+            row.innerHTML = `
+                <input type="checkbox" class="a-cb" onchange="updateAssignUI()">
+                <div class="card ${card.suit}" style="margin:0; width:35px; height:50px"></div>
+                <input type="number" class="a-iv" value="0" min="0" max="21" oninput="updateAssignUI()">
+            `;
+            list.appendChild(row);
+        });
+        updateAssignUI();
+    }
+
+    function autoAssign() {
+        const cbs = document.querySelectorAll('.a-cb');
+        const ivs = document.querySelectorAll('.a-iv');
+        let indices = [0,1,2,3,4,5,6,7,8].sort(()=>Math.random()-0.5).slice(0,7);
+        cbs.forEach((cb, i) => cb.checked = indices.includes(i));
+        
+        let points = [0,0,0,0,0,0,0], sum = 0;
+        while(sum < 21) {
+            let r = Math.floor(Math.random()*7);
+            if(points[r] < 7) { points[r]++; sum++; }
+        }
+        let pIdx = 0;
+        ivs.forEach((iv, i) => {
+            if(indices.includes(i)) { iv.value = points[pIdx++]; }
+            else { iv.value = 0; }
+        });
+        updateAssignUI();
+    }
+
+    function updateAssignUI() {
+        let count = 0, sum = 0;
+        document.querySelectorAll('.a-cb').forEach((cb, i) => {
+            if(cb.checked) {
+                count++;
+                sum += parseInt(document.querySelectorAll('.a-iv')[i].value) || 0;
+            }
+        });
+        document.getElementById('sel-count').innerText = count;
+        document.getElementById('current-sum').innerText = sum;
+        document.getElementById('assign-done-btn').disabled = (count !== 7 || sum !== 21);
+    }
+
+    function finishAssignment() {
+        let selected = [];
+        document.querySelectorAll('.a-cb').forEach((cb, i) => {
+            if(cb.checked) {
+                let card = players[0].hand[i];
+                card.value = parseInt(document.querySelectorAll('.a-iv')[i].value) || 0;
+                selected.push(card);
+            }
+        });
+        players[0].hand = selected;
+        startTrick();
+    }
+
+    function startTrick() {
+        showScreen('main-screen');
+        currentTrick = [];
+        trickLeadSuit = null;
+        currentPlayerIdx = firstPlayerIdx;
+        renderScoreArea();
+        updateStatus();
+        nextTurn();
+    }
+
+    function nextTurn() {
+        const p = players[currentPlayerIdx];
+        renderTable();
+        if(p.isAI) {
+            document.getElementById('turn-info').innerText = `${p.name} 思考中...`;
+            setTimeout(() => aiPlay(p), 600); // 稍微加快AI速度
+        } else {
+            document.getElementById('turn-info').innerText = `轮到你出牌`;
+            renderHumanHand();
+        }
+    }
+
+    function renderHumanHand() {
+        const area = document.getElementById('hand-area');
+        area.innerHTML = '';
+        const canFollow = players[0].hand.some(c => c.suit === trickLeadSuit);
+        
+        players[0].hand.forEach((card, i) => {
+            const div = document.createElement('div');
+            const isLegal = !trickLeadSuit || card.suit === trickLeadSuit || !canFollow;
+            div.className = `card ${card.suit} ${isLegal ? '' : 'disabled'}`;
+            div.innerHTML = `<span class="card-val">${card.value}</span>`;
+            div.onclick = () => {
+                if(!isLegal) return;
+                document.querySelectorAll('#hand-area .card').forEach(c => c.classList.remove('selected'));
+                div.classList.add('selected');
+                div.dataset.index = i;
+                document.getElementById('play-btn').style.display = 'block';
+            };
+            area.appendChild(div);
+        });
+    }
+
+    function humanPlay() {
+        const sel = document.querySelector('.card.selected');
+        if(!sel) return;
+        const idx = parseInt(sel.dataset.index);
+        document.getElementById('play-btn').style.display = 'none';
+        executeCard(0, idx);
+    }
+
+    function aiPlay(p) {
+        const canFollow = p.hand.filter(c => c.suit === trickLeadSuit);
+        let idx = -1;
+        if(trickLeadSuit && canFollow.length > 0) {
+            idx = p.hand.indexOf(canFollow[Math.floor(Math.random()*canFollow.length)]);
+        } else {
+            idx = Math.floor(Math.random()*p.hand.length);
+        }
+        executeCard(p.id, idx);
+    }
+
+    function executeCard(pIdx, cardIdx) {
+        const card = players[pIdx].hand.splice(cardIdx, 1)[0];
+        if(!trickLeadSuit) trickLeadSuit = card.suit;
+        currentTrick.push({pIdx, card});
+        
+        // 关键：立即更新 UI，让手牌消失，牌桌出现新牌
+        if (pIdx === 0) renderHumanHand(); 
+        renderTable();
+
+        currentPlayerIdx = (currentPlayerIdx + 1) % playerCount;
+
+        if(currentTrick.length === playerCount) {
+            setTimeout(resolveTrick, 800);
+        } else {
+            nextTurn();
+        }
+    }
+
+    function resolveTrick() {
+        const getValid = (list) => {
+            const counts = {};
+            list.forEach(t => counts[t.card.value] = (counts[t.card.value] || 0) + 1);
+            return list.filter(t => counts[t.card.value] === 1);
+        };
+
+        let leadCards = currentTrick.filter(t => t.card.suit === trickLeadSuit);
+        let validLeads = getValid(leadCards);
+        let winnerObj = null;
+
+        if(validLeads.length > 0) {
+            winnerObj = validLeads.sort((a,b) => b.card.value - a.card.value)[0];
+        } else {
+            let otherCards = currentTrick.filter(t => t.card.suit !== trickLeadSuit);
+            let validOthers = getValid(otherCards);
+            if(validOthers.length > 0) {
+                winnerObj = validOthers.sort((a,b) => b.card.value - a.card.value)[0];
+            }
+        }
+
+        const log = document.getElementById('msg-log');
+        if(!winnerObj) {
+            log.innerText = "⚠️ 所有人打平，卡牌作废";
+            currentScoreCards[currentScoreCardIdx].status = 'discarded';
+            firstPlayerIdx = (currentTrick[0].pIdx + 1) % playerCount;
+        } else if(winnerObj.card.value === 0) {
+            log.innerText = `💡 ${players[winnerObj.pIdx].name} 用 0 赢得，卡牌作废`;
+            currentScoreCards[currentScoreCardIdx].status = 'discarded';
+            firstPlayerIdx = winnerObj.pIdx;
+        } else {
+            const points = currentScoreCards[currentScoreCardIdx][winnerObj.card.suit];
+            players[winnerObj.pIdx].score += points;
+            log.innerText = `🏆 ${players[winnerObj.pIdx].name} 赢得 ${points} 分 (${CHN_COLORS[winnerObj.card.suit]})`;
+            firstPlayerIdx = winnerObj.pIdx;
+        }
+
+        currentScoreCardIdx++;
+        setTimeout(() => {
+            log.innerText = "";
+            if(currentScoreCardIdx >= 7) endRound();
+            else startTrick();
+        }, 1200);
+    }
+
+    function endRound() {
+        if(round >= 3) {
+            showFinalResults();
+            return;
+        }
+        round++;
+        const min = Math.min(...players.map(p => p.score));
+        const candidates = players.filter(p => p.score === min);
+        firstPlayerIdx = candidates[Math.floor(Math.random()*candidates.length)].id;
+        startRound();
+    }
+
+    function showFinalResults() {
+        showScreen('result-screen');
+        const list = document.getElementById('final-ranking');
+        list.innerHTML = '';
+        const sorted = [...players].sort((a,b) => b.score - a.score);
+        sorted.forEach((p, i) => {
+            const item = document.createElement('div');
+            item.className = 'ranking-item';
+            const crown = i === 0 ? '👑' : `#${i+1}`;
+            item.innerHTML = `<span>${crown} ${p.name}</span><span>${p.score} 分</span>`;
+            list.appendChild(item);
+        });
+    }
+
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    }
+
+    function renderScoreArea() {
+        const area = document.getElementById('score-cards-area');
+        area.innerHTML = '';
+        currentScoreCards.forEach((sc, i) => {
+            const div = document.createElement('div');
+            div.className = `score-card ${i===currentScoreCardIdx?'active':''} ${sc.status==='discarded'?'discarded':''}`;
+            div.innerHTML = `
+                <span style="color:#b8860b">黄:${sc.yellow}</span>
+                <span style="color:#c0392b">红:${sc.red}</span>
+                <span style="color:#2980b9">蓝:${sc.blue}</span>
+            `;
+            area.appendChild(div);
+        });
+    }
+
+    function renderTable() {
+        const table = document.getElementById('table');
+        table.innerHTML = '';
+        const radius = 105;
+        currentTrick.forEach((t, i) => {
+            // 计算玩家在圆桌上的位置
+            const angle = (t.pIdx * (360/playerCount) - 90) * (Math.PI/180);
+            const x = Math.cos(angle)*radius, y = Math.sin(angle)*radius;
+            const slot = document.createElement('div');
+            slot.className = 'table-slot';
+            slot.style.left = `calc(50% + ${x}px - 25px)`;
+            slot.style.top = `calc(50% + ${y}px - 45px)`;
+            slot.innerHTML = `
+                <div class="card ${t.card.suit}" style="margin:0">
+                    <span class="card-val">${t.card.value}</span>
+                </div>
+                <div style="font-size:11px; margin-top:3px; background:rgba(255,255,255,0.7); padding:1px 4px; border-radius:4px;">${players[t.pIdx].name}</div>
+            `;
+            table.appendChild(slot);
+        });
+    }
+
+    function updateStatus() {
+        document.getElementById('status-bar').innerHTML = players.map(p => `<span>${p.name}:<b>${p.score}</b></span>`).join('');
+    }
+</script>
+</body>
+</html>
