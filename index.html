@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Tricky Kids</title>
     <style>
         :root {
@@ -39,34 +39,42 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         button:active { transform: scale(0.95); }
-        .primary-btn { background: #27ae60; color: white; width: 80%; margin: 10px 0; }
-        .random-btn { background: #f39c12; color: white; margin-bottom: 10px; }
+        .primary-btn { background: #27ae60; color: white; width: 80%; margin: 8px 0; height: 44px; }
+        .random-btn { background: #f39c12; color: white; margin-bottom: 5px; padding: 10px; }
 
-        /* 顶部状态 */
-        #status-bar { width: 100%; background: #333; color: white; padding: 8px 0; display: flex; justify-content: space-around; font-size: 12px; }
-        #score-cards-area { height: 85px; width: 100%; display: flex; justify-content: center; gap: 4px; padding: 10px; box-sizing: border-box; background: #ddd; z-index: 10; }
+        /* 状态 & 分数卡 */
+        #status-bar { width: 100%; background: #333; color: white; padding: 6px 0; display: flex; justify-content: space-around; font-size: 11px; }
+        #score-cards-area { height: 75px; width: 100%; display: flex; justify-content: center; gap: 4px; padding: 5px; box-sizing: border-box; background: #ddd; z-index: 10; }
         
         .score-card { 
-            width: 13%; height: 65px; border: 1px solid #999; border-radius: 4px; font-size: 11px;
+            width: 13%; height: 60px; border: 1px solid #999; border-radius: 4px; font-size: 10px;
             display: flex; flex-direction: column; align-items: center; justify-content: center; background: white; 
         }
-        .score-card.active { border: 2px solid #e67e22; box-shadow: 0 0 8px rgba(230,126,34,0.5); transform: translateY(-2px); }
+        .score-card.active { border: 2px solid #e67e22; box-shadow: 0 0 5px rgba(230,126,34,0.5); }
         .score-card.discarded { opacity: 0.2; filter: grayscale(1); }
 
         /* 游戏区域 */
-        #play-area { flex: 1; position: relative; width: 100%; display: flex; flex-direction: column; }
-        #table { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; }
-        .table-slot { position: absolute; display: flex; flex-direction: column; align-items: center; transition: all 0.3s ease; }
+        #play-area { flex: 1; position: relative; width: 100%; display: flex; flex-direction: column; overflow: hidden; }
+        #table { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; min-height: 200px; }
+        .table-slot { position: absolute; display: flex; flex-direction: column; align-items: center; transform: scale(0.9); }
 
-        /* 手牌 */
-        #hand-container { background: #bbb; padding: 10px; display: flex; flex-direction: column; align-items: center; border-top: 2px solid #999; }
-        #hand-area { display: flex; justify-content: center; width: 100%; height: 90px; margin-bottom: 10px; }
+        /* 手牌区域 - 增加底部边距避免被手机系统条遮挡 */
+        #hand-container { 
+            background: #bbb; 
+            padding: 10px 10px 45px 10px; /* 底部增加 45px 留白，上移手牌 */
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            border-top: 2px solid #999; 
+            width: 100%;
+            box-sizing: border-box;
+        }
+        #hand-area { display: flex; justify-content: center; width: 100%; height: 85px; margin-bottom: 8px; }
 
-        /* 卡牌基础 */
         .card { 
-            width: 50px; height: 75px; border-radius: 6px; border: 1px solid #333; 
-            position: relative; margin-left: -20px; box-shadow: 2px 2px 5px rgba(0,0,0,0.2); 
-            background-color: white; transition: transform 0.15s, opacity 0.1s;
+            width: 48px; height: 70px; border-radius: 6px; border: 1px solid #333; 
+            position: relative; margin-left: -20px; box-shadow: 2px 2px 4px rgba(0,0,0,0.2); 
+            background-color: white; transition: transform 0.15s;
         }
         .card:first-child { margin-left: 0; }
         .card.selected { transform: translateY(-20px); border: 2.5px solid #000; z-index: 50; }
@@ -77,28 +85,19 @@
         .red { background-color: var(--card-red); color: white; }
         .blue { background-color: var(--card-blue); color: white; }
 
-        /* 分配列表 */
-        #assign-list { width: 95%; overflow-y: auto; flex: 1; margin: 10px 0; }
-        .assign-row { display: flex; align-items: center; justify-content: space-between; background: #fff; margin-bottom: 4px; padding: 8px; border-radius: 6px; }
-        .assign-row input[type="number"] { width: 55px; font-size: 18px; text-align: center; border: 1px solid #ccc; border-radius: 4px; }
+        /* 分配列表优化 - 限制高度防止按钮掉出屏幕 */
+        #assign-list { width: 95%; overflow-y: auto; max-height: 45vh; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; background: rgba(0,0,0,0.05); }
+        .assign-row { display: flex; align-items: center; justify-content: space-between; background: #fff; margin-bottom: 2px; padding: 6px 12px; border-radius: 4px; }
+        .assign-row input[type="number"] { width: 50px; font-size: 18px; text-align: center; border: 1px solid #ccc; }
 
         /* 结果界面 */
         #result-screen { justify-content: center; background: #2c3e50; color: white; }
-        .ranking-list { width: 85%; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 15px; }
-        .ranking-item { display: flex; justify-content: space-between; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.2); font-size: 22px; }
+        .ranking-list { width: 85%; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px; }
+        .ranking-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.2); font-size: 20px; }
 
-        /* 消息提示框 - 下移以避免遮挡 */
         #msg-log { 
-            position: absolute; 
-            top: 150px; /* 从90px调到150px */
-            width: 100%; 
-            text-align: center; 
-            font-weight: bold; 
-            color: #d35400; 
-            z-index: 5; 
-            height: 30px;
-            text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
-            pointer-events: none;
+            position: absolute; top: 135px; width: 100%; text-align: center; font-weight: bold; 
+            color: #d35400; z-index: 5; height: 24px; text-shadow: 1px 1px 2px white; pointer-events: none;
         }
     </style>
 </head>
@@ -106,7 +105,7 @@
 
 <div id="game-container">
     <div id="start-screen" class="screen active">
-        <h1 style="font-size: 48px; margin: 10px;">Tricky Kids</h1>
+        <h1 style="font-size: 42px; margin: 10px;">Tricky Kids</h1>
         <div class="btn-group">
             <button onclick="setupGame(2)">2人</button>
             <button onclick="setupGame(3)">3人</button>
@@ -117,13 +116,14 @@
     </div>
 
     <div id="assign-screen" class="screen">
-        <h3 style="margin: 15px 0 5px;">分配 21 点 (选7张)</h3>
+        <h3 style="margin: 10px 0 5px;">分配 21 点 (选7张)</h3>
         <button class="random-btn" onclick="autoAssign()">🎲 随机分配 (0-7)</button>
         <div id="assign-list"></div>
-        <div style="font-size: 18px; margin-bottom: 10px;">
+        <div style="font-size: 16px; margin: 5px 0;">
             已选: <span id="sel-count">0</span>/7 | 总计: <span id="current-sum">0</span>/21
         </div>
         <button id="assign-done-btn" class="primary-btn" onclick="finishAssignment()">确认并开始</button>
+        <div style="height: 20px;"></div> <!-- 底部缓冲 -->
     </div>
 
     <div id="main-screen" class="screen">
@@ -133,9 +133,9 @@
         <div id="play-area">
             <div id="table"></div>
             <div id="hand-container">
-                <div id="turn-info" style="font-size:14px; margin-bottom:5px; color:#444; font-weight:bold;"></div>
+                <div id="turn-info" style="font-size:13px; margin-bottom:5px; color:#333; font-weight:bold;"></div>
                 <div id="hand-area"></div>
-                <button id="play-btn" class="primary-btn" style="display:none; width:140px; margin:0; height:45px;" onclick="humanPlay()">立即出牌</button>
+                <button id="play-btn" class="primary-btn" style="display:none; width:150px; margin:0;" onclick="humanPlay()">出牌</button>
             </div>
         </div>
     </div>
@@ -148,6 +148,7 @@
 </div>
 
 <script>
+    // 逻辑部分保持一致，仅对 executeCard 的 UI 刷新做了微调
     const COLORS = ['yellow', 'red', 'blue'];
     const CHN_COLORS = { yellow: '黄', red: '红', blue: '蓝' };
     let playerCount, players, round = 1;
@@ -199,7 +200,7 @@
             row.className = 'assign-row';
             row.innerHTML = `
                 <input type="checkbox" class="a-cb" onchange="updateAssignUI()">
-                <div class="card ${card.suit}" style="margin:0; width:35px; height:50px"></div>
+                <div class="card ${card.suit}" style="margin:0; width:32px; height:45px"></div>
                 <input type="number" class="a-iv" value="0" min="0" max="21" oninput="updateAssignUI()">
             `;
             list.appendChild(row);
@@ -266,10 +267,10 @@
         const p = players[currentPlayerIdx];
         renderTable();
         if(p.isAI) {
-            document.getElementById('turn-info').innerText = `${p.name} 思考中...`;
-            setTimeout(() => aiPlay(p), 600); // 稍微加快AI速度
+            document.getElementById('turn-info').innerText = `${p.name} 正在出牌...`;
+            setTimeout(() => aiPlay(p), 700);
         } else {
-            document.getElementById('turn-info').innerText = `轮到你出牌`;
+            document.getElementById('turn-info').innerText = `你的回合 - 请出牌`;
             renderHumanHand();
         }
     }
@@ -319,7 +320,6 @@
         if(!trickLeadSuit) trickLeadSuit = card.suit;
         currentTrick.push({pIdx, card});
         
-        // 关键：立即更新 UI，让手牌消失，牌桌出现新牌
         if (pIdx === 0) renderHumanHand(); 
         renderTable();
 
@@ -355,17 +355,17 @@
 
         const log = document.getElementById('msg-log');
         if(!winnerObj) {
-            log.innerText = "⚠️ 所有人打平，卡牌作废";
+            log.innerText = "所有人打平，卡牌弃置";
             currentScoreCards[currentScoreCardIdx].status = 'discarded';
             firstPlayerIdx = (currentTrick[0].pIdx + 1) % playerCount;
         } else if(winnerObj.card.value === 0) {
-            log.innerText = `💡 ${players[winnerObj.pIdx].name} 用 0 赢得，卡牌作废`;
+            log.innerText = `${players[winnerObj.pIdx].name} 用 0 赢，卡牌弃置`;
             currentScoreCards[currentScoreCardIdx].status = 'discarded';
             firstPlayerIdx = winnerObj.pIdx;
         } else {
             const points = currentScoreCards[currentScoreCardIdx][winnerObj.card.suit];
             players[winnerObj.pIdx].score += points;
-            log.innerText = `🏆 ${players[winnerObj.pIdx].name} 赢得 ${points} 分 (${CHN_COLORS[winnerObj.card.suit]})`;
+            log.innerText = `${players[winnerObj.pIdx].name} 赢 (${points}分)`;
             firstPlayerIdx = winnerObj.pIdx;
         }
 
@@ -397,8 +397,7 @@
         sorted.forEach((p, i) => {
             const item = document.createElement('div');
             item.className = 'ranking-item';
-            const crown = i === 0 ? '👑' : `#${i+1}`;
-            item.innerHTML = `<span>${crown} ${p.name}</span><span>${p.score} 分</span>`;
+            item.innerHTML = `<span>#${i+1} ${p.name}</span><span>${p.score} 分</span>`;
             list.appendChild(item);
         });
     }
@@ -426,20 +425,19 @@
     function renderTable() {
         const table = document.getElementById('table');
         table.innerHTML = '';
-        const radius = 105;
+        const radius = 95;
         currentTrick.forEach((t, i) => {
-            // 计算玩家在圆桌上的位置
             const angle = (t.pIdx * (360/playerCount) - 90) * (Math.PI/180);
             const x = Math.cos(angle)*radius, y = Math.sin(angle)*radius;
             const slot = document.createElement('div');
             slot.className = 'table-slot';
-            slot.style.left = `calc(50% + ${x}px - 25px)`;
-            slot.style.top = `calc(50% + ${y}px - 45px)`;
+            slot.style.left = `calc(50% + ${x}px - 24px)`;
+            slot.style.top = `calc(50% + ${y}px - 40px)`;
             slot.innerHTML = `
                 <div class="card ${t.card.suit}" style="margin:0">
                     <span class="card-val">${t.card.value}</span>
                 </div>
-                <div style="font-size:11px; margin-top:3px; background:rgba(255,255,255,0.7); padding:1px 4px; border-radius:4px;">${players[t.pIdx].name}</div>
+                <div style="font-size:10px; margin-top:2px;">${players[t.pIdx].name}</div>
             `;
             table.appendChild(slot);
         });
